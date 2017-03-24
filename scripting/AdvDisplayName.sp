@@ -12,17 +12,18 @@ int msgColor[3];
 
 int hudSyncRef = 0;
 
-#define PLUGIN_VERSION              "1.0.0"
+#define PLUGIN_VERSION              "1.0.1"
 public Plugin myinfo = {
 	name = "Advanced Display Names",
 	author = "Mitchell",
-	description = "TODO",
+	description = "Displays the name of the player being looked at, with the possbility of 3 different ways.",
 	version = PLUGIN_VERSION,
 	url = "mtch.tech"
 }
 
 public void OnPluginStart() {
 	CreateConVar("sm_advdisplayname_version", PLUGIN_VERSION, "Game Instructor Name Version", FCVAR_REPLICATED|FCVAR_DONTRECORD);
+
 	cType = CreateConVar("sm_advdisplayname_type", "1", "0 = Hint, 1 = HudMsg, 2 = GameInstructor");
 	cTimeout = CreateConVar("sm_advdisplayname_timeout", "2.0", "Time the message is displayed");
 	cTeam = CreateConVar("sm_advdisplayname_team", "1", "0 = White, 1 = Team Colors, 2 = Team1 is Ally color, Team2 is Enemy color.");
@@ -32,12 +33,14 @@ public void OnPluginStart() {
 	cGIType = CreateConVar("sm_advdisplayname_gi_type", "0", "0 = Default just on player's screen, 1 = display over looked at player.");
 	cPos[0] = CreateConVar("sm_advdisplayname_hm_x", "-1.0", "X position of the HudMsg");
 	cPos[1] = CreateConVar("sm_advdisplayname_hm_y", "0.4", "Y position of the HudMsg");
+
 	cType.AddChangeHook(convarChangeCallback);
 	cColor[0].AddChangeHook(convarChangeCallback);
 	cColor[1].AddChangeHook(convarChangeCallback);
 	cColor[2].AddChangeHook(convarChangeCallback);
 	cPos[0].AddChangeHook(convarChangeCallback);
 	cPos[1].AddChangeHook(convarChangeCallback);
+
 	resetStoredVariables();
 	AutoExecConfig(true, "AdvDisplayName");
 
@@ -61,7 +64,7 @@ public void resetStoredVariables() {
 		for(int c = 0; c < 3; c++) {
 			cColor[c].GetString(colorString, sizeof(colorString));
 			ExplodeString(colorString, ",", colorBuffer, 3, sizeof(colorBuffer[]), false);
-			
+
 			int clr; 
 			clr |= ((StringToInt(colorBuffer[0]) & 0xFF) << 16);
 			clr |= ((StringToInt(colorBuffer[1]) & 0xFF) << 8 );
@@ -88,19 +91,6 @@ public Action Timer_Display(Handle timer) {
 }
 
 public int showNameMessage(int client, int target) {
-	/*char color[12] = "255,255,255";
-	if(cTeam.IntValue == 1) {
-		int team = GetClientTeam(target) - 2; //Offset them for the convars
-		if(team > -1 && team < 2) {
-			cColor[team].GetString(color, sizeof(color));
-		}
-	} else if(cTeam.IntValue == 2) {
-		int team = GetClientTeam(target) != GetClientTeam(client) ? 0 : 1;
-		if(team > -1 && team < 2) {
-			cColor[team].GetString(color, sizeof(color));
-		}
-	}*/
-
 	int color = (cTeam.IntValue == 1) ? (GetClientTeam(target) - 1) : (cTeam.IntValue == 2) ? (GetClientTeam(target) != GetClientTeam(client) ? 1 : 2) : 0;
 	if(color < 0 || color > 2) {
 		color = 0;
@@ -166,30 +156,24 @@ public void showHudMsg(int client, char[] message, int color) {
 	ShowSyncHudText(client, hudSync, message);*/
 	char tempString[32];
 	if(!isValidRef(hudSyncRef)) {
-		PrintToChat(client, "Creating game_text");
-
+		// The game_text was removed, let's recreate it, since we only need one entity to display to multiple clients.
 		int gameText = CreateEntityByName("game_text");
 		DispatchKeyValue(gameText, "channel", "1");
-		cTimeout.GetString(tempString, sizeof(tempString));
-		DispatchKeyValue(gameText, "holdtime", tempString);
+		DispatchKeyValueFloat(gameText, "holdtime", cTimeout.FloatValue);
 		DispatchKeyValue(gameText, "color", "255 255 255");
 		DispatchKeyValue(gameText, "color2", "0 0 0");
 		DispatchKeyValue(gameText, "effect", "0");
-
-		cPos[0].GetString(tempString, sizeof(tempString));
-		DispatchKeyValue(gameText, "x", tempString);
-		cPos[1].GetString(tempString, sizeof(tempString));
-		DispatchKeyValue(gameText, "y", tempString);
-
+		DispatchKeyValueFloat(gameText, "x", cPos[0].FloatValue);
+		DispatchKeyValueFloat(gameText, "y", cPos[1].FloatValue);
 		DispatchSpawn(gameText);
-		hudSyncRef = EntIndexToEntRef(gameText);
 
-		PrintToChat(client, "Created game_text");
+		hudSyncRef = EntIndexToEntRef(gameText);
 	}
 	cColor[color].GetString(tempString, sizeof(tempString));
 	ReplaceString(tempString, sizeof(tempString), ",", " ", false);
 	DispatchKeyValue(hudSyncRef, "color", tempString);
 	DispatchKeyValue(hudSyncRef, "message", message);
+
 	SetVariantString("!activator");
 	AcceptEntityInput(hudSyncRef, "display", client);
 }
