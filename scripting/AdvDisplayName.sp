@@ -12,7 +12,7 @@ int msgColor[3];
 
 int hudSyncRef = 0;
 
-#define PLUGIN_VERSION              "1.0.1"
+#define PLUGIN_VERSION              "1.0.2"
 public Plugin myinfo = {
 	name = "Advanced Display Names",
 	author = "Mitchell",
@@ -144,6 +144,7 @@ public void showInstructorHint(int client, char[] message, int target, int color
 	event.SetBool("hint_forcecaption", true);
 	event.SetBool("hint_local_player_only", true);
 	event.FireToClient(client);
+	event.Cancel();
 	delete event;
 }
 
